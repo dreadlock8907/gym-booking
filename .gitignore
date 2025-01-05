@@ -1,0 +1,7 @@
+# Logs
+admin/gym-service/logs/*
+!admin/gym-service/logs/.gitkeep
+
+# PID files
+admin/gym-service/pids/*
+!admin/gym-service/pids/.gitkeep 
