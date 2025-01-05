@@ -13,6 +13,8 @@
     "@/": "./src/",
     "oak": "https://deno.land/x/oak@v12.6.1/mod.ts",
     "dotenv": "https://deno.land/x/dotenv@v3.2.2/mod.ts",
-    "vite-deno-plugin": "https://deno.land/x/vite_deno_plugin/mod.ts"
+    "vite-deno-plugin": "https://deno.land/x/vite_deno_plugin/mod.ts",
+    "@vue/runtime-core": "https://esm.sh/@vue/runtime-core@3.3.0",
+    "@vue/reactivity": "https://esm.sh/@vue/reactivity@3.3.0"
   }
 }

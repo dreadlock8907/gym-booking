@@ -10,6 +10,11 @@ export interface IGym extends Document {
   icon?: string;
   createdAt: Date;
   updatedAt: Date;
+
+  // Новые поля для авторизации
+  password?: string;
+  isFirstLogin: boolean;
+  lastLogin?: Date;
 }
 
 export const gymSchema = {
@@ -21,5 +26,10 @@ export const gymSchema = {
   port: { type: Number, default: null, min: 1024, max: 65535 },
   icon: { type: String, default: null },
   createdAt: { type: Date, default: new Date() },
-  updatedAt: { type: Date, default: new Date() }
+  updatedAt: { type: Date, default: new Date() },
+
+  // Поля для авторизации
+  password: { type: String, default: null },
+  isFirstLogin: { type: Boolean, default: true },
+  lastLogin: { type: Date, default: null }
 }; 

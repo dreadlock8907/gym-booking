@@ -1,6 +1,7 @@
 import { Router } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import { ObjectId, Filter } from "https://deno.land/x/mongo@v0.31.2/mod.ts";
 import { IGym } from "../models/Gym.ts";
+import { IOrigin } from "../models/Origin.ts";
 import { Collection } from "https://deno.land/x/mongo@v0.31.2/src/collection/mod.ts";
 import { join, dirname } from "https://deno.land/std@0.224.0/path/mod.ts";
 
@@ -28,6 +29,7 @@ router.post("/", async (ctx) => {
     }
 
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
+    const originsCollection: Collection<IOrigin> = ctx.state.db.collection("origins");
     
     const newGym: IGym = {
       name: body.name,
@@ -37,10 +39,22 @@ router.post("/", async (ctx) => {
       port: body.port || null,
       icon: body.icon || null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      isFirstLogin: true
     };
 
     const result = await gymCollection.insertOne(newGym);
+    
+    // Если указан порт, добавляем origin
+    if (body.port) {
+      const origin = `http://localhost:${body.port}`;
+      await originsCollection.insertOne({
+        gymId: result.toString(),
+        port: body.port,
+        origin: origin,
+        createdAt: new Date()
+      });
+    }
     
     ctx.response.status = 201;
     ctx.response.body = {
@@ -153,7 +167,9 @@ router.delete("/:id", async (ctx) => {
   try {
     const { id } = ctx.params;
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
+    const originsCollection: Collection<IOrigin> = ctx.state.db.collection("origins");
     
+    // Находим студию
     const gym = await gymCollection.findOne({ _id: new ObjectId(id) } as Filter<IGym>);
     
     if (!gym) {
@@ -192,7 +208,10 @@ router.delete("/:id", async (ctx) => {
       }
     }
     
-    // Удаляем студию из базы данных
+    // Удаляем связанные origin
+    await originsCollection.deleteMany({ gymId: id } as Filter<IOrigin>);
+    
+    // Удаляем студию
     const result = await gymCollection.deleteOne({ _id: new ObjectId(id) } as Filter<IGym>);
     
     if (result === 0) {
@@ -444,6 +463,25 @@ router.post("/:id/server", async (ctx) => {
     ctx.response.status = 500;
     ctx.response.body = {
       message: "Ошибка управления сервером студии",
+      error: String(error)
+    };
+  }
+});
+
+// Получение списка доступных origin
+router.get("/origins", async (ctx) => {
+  try {
+    const originsCollection: Collection<IOrigin> = ctx.state.db.collection("origins");
+    const origins = await originsCollection.find().toArray();
+    
+    ctx.response.body = origins.map(origin => ({
+      port: origin.port,
+      origin: origin.origin
+    }));
+  } catch (error) {
+    ctx.response.status = 500;
+    ctx.response.body = {
+      message: "Ошибка получения списка origin",
       error: String(error)
     };
   }

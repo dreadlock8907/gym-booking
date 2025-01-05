@@ -1,19 +1,24 @@
    <!-- src/App.vue -->
    <template>
     <div id="app">
-      <h1>Привет, мир!</h1>
+      <AuthForm />
     </div>
   </template>
 
   <script lang="ts">
-  export default {
+  import { defineComponent } from 'vue'
+  import AuthForm from './components/AuthForm.vue'
+
+  export default defineComponent({
     name: "App",
-  };
+    components: {
+      AuthForm
+    }
+  });
   </script>
 
   <style>
   #app {
-    text-align: center;
-    margin-top: 50px;
+    font-family: Arial, sans-serif;
   }
   </style>
