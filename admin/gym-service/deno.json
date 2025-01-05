@@ -1,12 +1,18 @@
 {
-  "compilerOptions": {
-    "allowJs": true,
-    "lib": ["deno.window"],
-    "strict": true
-  },
-  "importMap": "./import_map.json",
   "tasks": {
-    "start": "deno run --allow-net --allow-read src/main.ts",
-    "dev": "deno run --watch --allow-net --allow-read src/main.ts"
+    "dev": "deno run -A npm:vite . --config ./vite.config.mts --port",
+    "build": "deno run -A npm:vite . --config ./vite.config.mts --port",
+    "preview": "deno run -A npm:vite . --config ./vite.config.mts --port"
+  },
+  "imports": {
+    "vue": "https://esm.sh/vue@3.3.0",
+    "vite": "npm:vite@^5.0.0",
+    "@vitejs/plugin-vue": "npm:@vitejs/plugin-vue@^5.0.0",
+    "element-plus": "https://esm.sh/element-plus@2.4.4",
+    "element-plus/dist/index.css": "https://esm.sh/element-plus@2.4.4/dist/index.css",
+    "@/": "./src/",
+    "oak": "https://deno.land/x/oak@v12.6.1/mod.ts",
+    "dotenv": "https://deno.land/x/dotenv@v3.2.2/mod.ts",
+    "vite-deno-plugin": "https://deno.land/x/vite_deno_plugin/mod.ts"
   }
-} 
+}

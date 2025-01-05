@@ -1,5 +1,7 @@
-воскресенье,  5 января 2025 г. 00:53:15 (MSK): Запуск сервиса на порту 9999
-Unsupported compiler options in "file:///Users/dreadlockie/projects/gym-booking/web/admin/gym-service/deno.json".
-  The following options were ignored:
-    allowJs
-🚀 Сервис студии запущен на порту 9999
+воскресенье,  5 января 2025 г. 20:17:17 (MSK): Запуск сервиса на порту 9999
+[0m[32mTask[0m [0m[36mdev[0m deno run -A npm:vite . --config ./vite.config.mts --port "--port" "9999"
+
+  VITE v5.4.11  ready in 389 ms
+
+  ➜  Local:   http://localhost:9999/
+  ➜  Network: use --host to expose

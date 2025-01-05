@@ -21,7 +21,7 @@ PID_FILE="$PID_DIR/gym_service_$1.pid"
 
 # Запускаем Deno-сервис с указанным портом и логированием
 echo "$(date): Запуск сервиса на порту $1" >> "$LOG_FILE"
-deno run --allow-net --allow-read src/main.ts "$1" >> "$LOG_FILE" 2>&1 &
+deno task dev --port "$1" >> "$LOG_FILE" 2>&1 &
 
 # Сохраняем PID процесса
 echo $! > "$PID_FILE"
