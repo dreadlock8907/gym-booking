@@ -190,6 +190,34 @@
 import { ref, defineProps, defineEmits, computed } from 'vue'
 import { Gym } from './GymList.vue'
 
+// Функция форматирования номера телефона
+const formatPhoneNumber = (phone: string): string => {
+  // Удаляем все нецифровые символы
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Если номер начинается с 7 или 8, оставляем только цифры
+  const number = cleaned.startsWith('7') || cleaned.startsWith('8') 
+    ? cleaned.slice(-10) 
+    : cleaned;
+  
+  // Форматируем номер в российском формате
+  return `+7 (${number.slice(0,3)}) ${number.slice(3,6)}-${number.slice(6,8)}-${number.slice(8)}`;
+}
+
+// Функция очистки номера телефона
+const cleanPhoneNumber = (phone: string): string => {
+  // Удаляем все нецифровые символы
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Если номер начинается с 7 или 8, оставляем только последние 10 цифр
+  const number = cleaned.startsWith('7') || cleaned.startsWith('8') 
+    ? cleaned.slice(-10) 
+    : cleaned.slice(-10);
+  
+  // Возвращаем номер без форматирования
+  return number;
+}
+
 const props = defineProps<{
   initialGym?: Gym
 }>()
@@ -303,61 +331,70 @@ const toggleServerStatus = async () => {
 }
 
 const createGym = async (data: Gym) => {
-  const response = await fetch('http://localhost:8000/api/gyms', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: data.name,
-      phone: data.phone,
-      ownerEmail: data.ownerEmail,
-      services: data.selectedServices,
-      port: data.port,
-      icon: iconPreview.value
+  try {
+    const response = await fetch('http://localhost:8000/api/gyms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: data.name,
+        phone: cleanPhoneNumber(data.phone),
+        ownerEmail: data.ownerEmail,
+        services: data.selectedServices,
+        port: data.port,
+        icon: iconPreview.value
+      })
     })
-  })
 
-  if (!response.ok) {
-    throw new Error('Ошибка при создании студии')
+    if (!response.ok) {
+      const errorBody = await response.text()
+      console.error('Detailed error:', errorBody)
+      throw new Error(`Ошибка при создании студии: ${response.status} - ${errorBody}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error('Полная ошибка при создании студии:', error)
+    throw error
   }
-
-  return response.json()
 }
 
 const updateGym = async (data: Gym) => {
-  const response = await fetch(`http://localhost:8000/api/gyms/${data._id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: data.name,
-      phone: data.phone,
-      ownerEmail: data.ownerEmail,
-      services: data.selectedServices,
-      status: data.status,
-      port: data.port,
-      icon: iconPreview.value === null ? null : (iconPreview.value || data.icon)
+  try {
+    const response = await fetch(`http://localhost:8000/api/gyms/${data._id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: data.name,
+        phone: cleanPhoneNumber(data.phone),
+        ownerEmail: data.ownerEmail,
+        services: data.selectedServices,
+        status: data.status,
+        port: data.port,
+        icon: iconPreview.value === null ? null : (iconPreview.value || data.icon)
+      })
     })
-  })
 
-  if (!response.ok) {
-    throw new Error('Ошибка при обновлении студии')
+    if (!response.ok) {
+      const errorBody = await response.text()
+      console.error('Detailed error:', errorBody)
+      throw new Error(`Ошибка при обновлении студии: ${response.status} - ${errorBody}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error('Полная ошибка при обновлении студии:', error)
+    throw error
   }
-
-  return response.json()
 }
 
 // Функция валидации email
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
   return emailRegex.test(email)
-}
-
-// Функция форматирования телефона
-const formatPhoneNumber = (value: string): string => {
-  return value
 }
 
 const handlePhoneInput = (event: Event) => {
@@ -381,16 +418,16 @@ const validateForm = (): boolean => {
   }
 
   // Валидация телефона (должен содержать только цифры и начинаться с +7)
-  const phoneRegex = /^\+7\d{10}$/
-  if (!phoneRegex.test(formData.value.phone)) {
-    error.value = 'Номер телефона должен начинаться с +7 и содержать 10 цифр'
+  const cleanedPhone = cleanPhoneNumber(formData.value.phone)
+  if (cleanedPhone.length !== 10) {
+    error.value = 'Номер телефона должен содержать 10 цифр'
     return false
   }
 
   return true
 }
 
-// Обновляем submitForm
+// Обновляем submitForm для более подробной обработки ошибок
 const submitForm = async () => {
   try {
     // Добавляем валидацию
@@ -416,7 +453,16 @@ const submitForm = async () => {
       alert('Студия успешно создана!')
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Произошла ошибка'
+    // Более подробный вывод ошибки
+    const errorMessage = e instanceof Error 
+      ? `${e.message}\n\nПолная информация об ошибке:\n${e.stack}` 
+      : 'Произошла неизвестная ошибка'
+    
+    console.error('Полная ошибка:', e)
+    error.value = errorMessage
+    
+    // Показываем alert с подробной информацией
+    alert(errorMessage)
   } finally {
     isSubmitting.value = false
   }

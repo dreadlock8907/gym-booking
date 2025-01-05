@@ -25,7 +25,7 @@ try {
 // Middleware для CORS
 app.use(
   oakCors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5180"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
