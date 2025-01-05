@@ -18,7 +18,7 @@
           v-model="formData.phone" 
           type="tel" 
           required 
-          placeholder="+7 (___) ___-__-__"
+          placeholder="Введите номер телефона"
         />
       </div>
 
@@ -93,6 +93,51 @@
         </div>
       </div>
 
+      <div class="form-group icon-upload-group">
+        <label>Иконка студии</label>
+        <div class="icon-upload-container">
+          <input 
+            type="file" 
+            id="gymIcon" 
+            accept="image/jpeg,image/png,image/webp"
+            @change="handleIconUpload"
+            class="icon-file-input"
+          />
+          <label for="gymIcon" class="icon-upload-label">
+            <div v-if="!iconPreview && !formData.icon" class="icon-placeholder">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2h-18a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2h7l2 3h7a2 2 0 0 1 2 2z"></path>
+                <line x1="12" y1="11" x2="12" y2="17"></line>
+                <line x1="9" y1="14" x2="15" y2="14"></line>
+              </svg>
+              <span>Выбрать иконку</span>
+            </div>
+            <div v-else class="icon-preview">
+              <img 
+                :src="iconPreview || formData.icon" 
+                alt="Иконка студии" 
+                class="preview-image"
+              />
+              <button 
+                type="button" 
+                class="remove-icon-btn" 
+                @click.prevent="removeIcon"
+                title="Удалить иконку"
+              >
+                ✕
+              </button>
+            </div>
+          </label>
+          <div class="icon-upload-hints">
+            <small>
+              • Максимальный размер: 512x512 пикселей
+              • Форматы: JPEG, PNG, WebP
+              • Максимальный размер файла: 5 МБ
+            </small>
+          </div>
+        </div>
+      </div>
+
       <div class="form-actions">
         <button type="submit" class="submit-btn" :disabled="isSubmitting">
           {{ isEditMode ? 'Сохранить изменения' : 'Добавить студию' }}
@@ -113,24 +158,43 @@
         >
           Очистить
         </button>
+        <button 
+          v-if="isEditMode" 
+          type="button" 
+          class="delete-btn" 
+          @click="confirmDelete"
+        >
+          Удалить студию
+        </button>
       </div>
 
       <div v-if="error" class="error-message">
         {{ error }}
       </div>
     </form>
+
+    <div v-if="showDeleteConfirmation" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Подтверждение удаления</h3>
+        <p>Вы уверены, что хотите удалить эту студию? Это действие нельзя будет отменить.</p>
+        <div class="modal-actions">
+          <button @click="deleteGym" class="confirm-delete-btn">Удалить</button>
+          <button @click="showDeleteConfirmation = false" class="cancel-btn">Отмена</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits } from 'vue'
+import { ref, defineProps, defineEmits, computed } from 'vue'
 import { Gym } from './GymList.vue'
 
 const props = defineProps<{
   initialGym?: Gym
 }>()
 
-const emit = defineEmits(['gym-updated', 'edit-cancelled'])
+const emit = defineEmits(['gym-updated', 'edit-cancelled', 'gym-deleted'])
 
 const services = [
   'Тренажерный зал',
@@ -147,17 +211,65 @@ const isEditMode = ref(!!props.initialGym)
 const formData = ref<Gym>({
   _id: props.initialGym?._id || '',
   name: props.initialGym?.name || '',
-  phone: props.initialGym?.phone || '',
+  phone: props.initialGym?.phone ? formatPhoneNumber(props.initialGym.phone) : '+7(',
   email: props.initialGym?.email || '',
   services: props.initialGym?.services || [],
   selectedServices: props.initialGym?.services || [],
   status: props.initialGym?.status || 'stopped',
-  port: props.initialGym?.port || null
+  port: props.initialGym?.port || null,
+  icon: props.initialGym?.icon || null
 })
+
+const iconFile = ref<File | null>(null)
+const iconPreview = ref<string | null>(null)
+
+const handleIconUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const file = input.files[0]
+    
+    if (file.size > 5 * 1024 * 1024) {
+      error.value = 'Размер файла не должен превышать 5 МБ'
+      return
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      error.value = 'Допустимы только изображения в форматах JPEG, PNG и WebP'
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        if (img.width > 512 || img.height > 512) {
+          error.value = 'Максимальный размер изображения 512x512 пикселей'
+          iconFile.value = null
+          iconPreview.value = null
+          return
+        }
+        
+        iconPreview.value = e.target?.result as string
+        iconFile.value = file
+        error.value = ''
+      }
+      img.src = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const removeIcon = () => {
+  iconFile.value = null
+  iconPreview.value = null
+  formData.value.icon = null
+}
 
 const isSubmitting = ref(false)
 const isServerActionInProgress = ref(false)
 const error = ref('')
+const showDeleteConfirmation = ref(false)
 
 const toggleServerStatus = async () => {
   if (!formData.value._id) return
@@ -201,7 +313,8 @@ const createGym = async (data: Gym) => {
       phone: data.phone,
       email: data.email,
       services: data.selectedServices,
-      port: data.port
+      port: data.port,
+      icon: iconPreview.value
     })
   })
 
@@ -224,7 +337,8 @@ const updateGym = async (data: Gym) => {
       email: data.email,
       services: data.selectedServices,
       status: data.status,
-      port: data.port
+      port: data.port,
+      icon: iconPreview.value === null ? null : (iconPreview.value || data.icon)
     })
   })
 
@@ -235,14 +349,61 @@ const updateGym = async (data: Gym) => {
   return response.json()
 }
 
+// Функция валидации email
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  return emailRegex.test(email)
+}
+
+// Функция форматирования телефона
+const formatPhoneNumber = (value: string): string => {
+  return value
+}
+
+const handlePhoneInput = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  formData.value.phone = input.value
+}
+
+const handlePhoneDelete = () => {
+  // Пустая функция, больше не нужна
+}
+
+// Валидация формы перед отправкой
+const validateForm = (): boolean => {
+  // Сбрасываем предыдущие ошибки
+  error.value = ''
+
+  // Валидация email
+  if (!validateEmail(formData.value.email)) {
+    error.value = 'Некорректный формат электронной почты'
+    return false
+  }
+
+  // Валидация телефона (должен содержать только цифры и начинаться с +7)
+  const phoneRegex = /^\+7\d{10}$/
+  if (!phoneRegex.test(formData.value.phone)) {
+    error.value = 'Номер телефона должен начинаться с +7 и содержать 10 цифр'
+    return false
+  }
+
+  return true
+}
+
+// Обновляем submitForm
 const submitForm = async () => {
   try {
+    // Добавляем валидацию
+    if (!validateForm()) return
+
     isSubmitting.value = true
     error.value = ''
     
     const gymData = {
       ...formData.value,
-      services: formData.value.selectedServices
+      services: formData.value.selectedServices,
+      // Оставляем номер телефона как есть
+      phone: formData.value.phone
     }
 
     if (isEditMode.value) {
@@ -261,6 +422,7 @@ const submitForm = async () => {
   }
 }
 
+// Обновляем resetForm для корректного сброса телефона
 const resetForm = () => {
   if (isEditMode.value) {
     emit('edit-cancelled')
@@ -268,15 +430,47 @@ const resetForm = () => {
     formData.value = {
       _id: '',
       name: '',
-      phone: '',
+      phone: '+7', // Просто +7 без сложного форматирования
       email: '',
       services: [],
       selectedServices: [],
       status: 'stopped',
-      port: null
+      port: null,
+      icon: null
     }
   }
   error.value = ''
+  iconPreview.value = null
+  iconFile.value = null
+}
+
+const confirmDelete = () => {
+  showDeleteConfirmation.value = true
+}
+
+const deleteGym = async () => {
+  if (!formData.value._id) return
+
+  try {
+    const response = await fetch(`http://localhost:8000/api/gyms/${formData.value._id}`, {
+      method: 'DELETE'
+    })
+
+    if (!response.ok) {
+      throw new Error('Не удалось удалить студию')
+    }
+
+    // Закрываем модальное окно
+    showDeleteConfirmation.value = false
+
+    // Уведомляем родительский компонент об удалении
+    emit('gym-deleted', formData.value._id)
+
+    // Возвращаемся к списку студий
+    alert('Студия успешно удалена!')
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Произошла ошибка при удалении студии'
+  }
 }
 </script>
 
@@ -536,5 +730,148 @@ input[type="email"] {
 .port-hint::before {
   content: "ℹ️";
   font-size: 14px;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.confirm-delete-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.icon-upload-group {
+  margin-top: 20px;
+}
+
+.icon-upload-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.icon-file-input {
+  display: none;
+}
+
+.icon-upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.icon-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100px;
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.icon-placeholder:hover {
+  border-color: #007bff;
+}
+
+.icon-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background-color: #f0f0f0;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-icon-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  color: white;
+  font-size: 14px;
+}
+
+.icon-upload-hints {
+  margin-top: 10px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 12px;
 }
 </style> 

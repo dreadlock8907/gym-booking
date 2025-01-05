@@ -20,6 +20,7 @@
         :initial-gym="selectedGym"
         @gym-updated="handleGymUpdate"
         @edit-cancelled="cancelGymEdit"
+        @gym-deleted="handleGymDeleted"
       />
       <GymList 
         v-else-if="currentView === 'list'"
@@ -52,6 +53,11 @@ const handleGymUpdate = (updatedGym: Gym) => {
 }
 
 const cancelGymEdit = () => {
+  selectedGym.value = undefined
+  currentView.value = 'list'
+}
+
+const handleGymDeleted = () => {
   selectedGym.value = undefined
   currentView.value = 'list'
 }

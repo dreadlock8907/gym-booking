@@ -7,6 +7,7 @@ export interface IGym extends Document {
   services: string[];
   status?: 'running' | 'stopped';
   port?: number;
+  icon?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +19,7 @@ export const gymSchema = {
   services: { type: [String], default: [] },
   status: { type: String, default: 'stopped', enum: ['running', 'stopped'] },
   port: { type: Number, default: null, min: 1024, max: 65535 },
+  icon: { type: String, default: null },
   createdAt: { type: Date, default: new Date() },
   updatedAt: { type: Date, default: new Date() }
 }; 

@@ -1,5 +1,5 @@
 import { Router } from "https://deno.land/x/oak@v12.6.1/mod.ts";
-import { ObjectId } from "https://deno.land/x/mongo@v0.31.2/mod.ts";
+import { ObjectId, Filter } from "https://deno.land/x/mongo@v0.31.2/mod.ts";
 import { IGym } from "../models/Gym.ts";
 import { Collection } from "https://deno.land/x/mongo@v0.31.2/src/collection/mod.ts";
 import { join, dirname } from "https://deno.land/std@0.224.0/path/mod.ts";
@@ -8,23 +8,39 @@ const PROJECT_ROOT = Deno.cwd().replace('/backend', '');
 
 const router = new Router();
 
+// Функция валидации телефона
+const validatePhone = (phone: string): boolean => {
+  // Проверяем, что после удаления всех нецифровых символов остается 10 цифр
+  const phoneDigits = phone.replace(/\D/g, '')
+  return phoneDigits.length === 10
+}
+
 // Создание новой студии
 router.post("/", async (ctx) => {
   try {
     const body = await ctx.request.body({ type: "json" }).value;
-    console.log('Получены данные:', body);
     
+    // Валидация телефона
+    if (!validatePhone(body.phone)) {
+      ctx.response.status = 400;
+      ctx.response.body = { message: "Некорректный номер телефона" };
+      return;
+    }
+
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
     
     const newGym: IGym = {
-      ...body,
+      name: body.name,
+      phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
+      email: body.email,
+      services: body.services,
       port: body.port || null,
+      icon: body.icon || null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
     const result = await gymCollection.insertOne(newGym);
-    console.log('Студия создана:', result);
     
     ctx.response.status = 201;
     ctx.response.body = {
@@ -62,7 +78,7 @@ router.get("/:id", async (ctx) => {
   try {
     const { id } = ctx.params;
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
-    const gym = await gymCollection.findOne({ _id: new ObjectId(id) });
+    const gym = await gymCollection.findOne({ _id: new ObjectId(id) } as Filter<IGym>);
     
     if (!gym) {
       ctx.response.status = 404;
@@ -85,18 +101,27 @@ router.put("/:id", async (ctx) => {
   try {
     const { id } = ctx.params;
     const body = await ctx.request.body({ type: "json" }).value;
+
+    // Валидация телефона
+    if (!validatePhone(body.phone)) {
+      ctx.response.status = 400;
+      ctx.response.body = { message: "Некорректный номер телефона" };
+      return;
+    }
+
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
     
     const result = await gymCollection.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id) } as Filter<IGym>,
       { 
         $set: {
           name: body.name,
-          phone: body.phone,
+          phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
           email: body.email,
           services: body.services,
           status: body.status || 'stopped',
           port: body.port || null,
+          icon: body.icon || null,
           updatedAt: new Date()
         }
       }
@@ -127,7 +152,46 @@ router.delete("/:id", async (ctx) => {
     const { id } = ctx.params;
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
     
-    const result = await gymCollection.deleteOne({ _id: new ObjectId(id) });
+    const gym = await gymCollection.findOne({ _id: new ObjectId(id) } as Filter<IGym>);
+    
+    if (!gym) {
+      ctx.response.status = 404;
+      ctx.response.body = { message: "Студия не найдена" };
+      return;
+    }
+    
+    // Если сервер запущен, останавливаем его перед удалением
+    if (gym.port && gym.status === 'running') {
+      const pidDir = join(PROJECT_ROOT, 'gym-service', 'pids');
+      const pidFilePath = join(pidDir, `gym_service_${gym.port}.pid`);
+      
+      try {
+        // Читаем PID из файла
+        const pidText = await Deno.readTextFile(pidFilePath);
+        const pid = parseInt(pidText.trim(), 10);
+
+        // Завершаем процесс
+        try {
+          Deno.kill(pid, "SIGTERM");
+          console.log(`Процесс ${pid} успешно остановлен перед удалением студии`);
+        } catch (killError) {
+          console.warn(`Не удалось завершить процесс ${pid}:`, killError);
+        }
+
+        // Удаляем PID-файл
+        try {
+          await Deno.remove(pidFilePath);
+          console.log(`PID-файл ${pidFilePath} удален`);
+        } catch (removeError) {
+          console.warn(`Не удалось удалить PID-файл ${pidFilePath}:`, removeError);
+        }
+      } catch (readError) {
+        console.warn(`Не удалось прочитать PID-файл перед удалением студии:`, readError);
+      }
+    }
+    
+    // Удаляем студию из базы данных
+    const result = await gymCollection.deleteOne({ _id: new ObjectId(id) } as Filter<IGym>);
     
     if (result === 0) {
       ctx.response.status = 404;
@@ -140,6 +204,7 @@ router.delete("/:id", async (ctx) => {
       deletedCount: result
     };
   } catch (error) {
+    console.error('Ошибка при удалении студии:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       message: "Ошибка удаления студии",
@@ -159,7 +224,7 @@ router.post("/:id/server", async (ctx) => {
     const { action } = await ctx.request.body({ type: "json" }).value;
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
     
-    const gym = await gymCollection.findOne({ _id: new ObjectId(id) });
+    const gym = await gymCollection.findOne({ _id: new ObjectId(id) } as Filter<IGym>);
     
     if (!gym) {
       ctx.response.status = 404;
@@ -260,7 +325,7 @@ router.post("/:id/server", async (ctx) => {
         
         // Обновляем порт, если он был null
         await gymCollection.updateOne(
-          { _id: new ObjectId(id) },
+          { _id: new ObjectId(id) } as Filter<IGym>,
           { 
             $set: {
               status: serverStatus,
@@ -347,7 +412,7 @@ router.post("/:id/server", async (ctx) => {
         serverStatus = 'stopped';
         
         await gymCollection.updateOne(
-          { _id: new ObjectId(id) },
+          { _id: new ObjectId(id) } as Filter<IGym>,
           { 
             $set: {
               status: serverStatus,

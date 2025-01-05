@@ -14,7 +14,15 @@
         @click="$emit('select-gym', gym)"
       >
         <div class="gym-card-header">
-          <h3>{{ gym.name }}</h3>
+          <div class="gym-header-content">
+            <img 
+              v-if="gym.icon" 
+              :src="gym.icon" 
+              :alt="`Иконка ${gym.name}`" 
+              class="gym-icon"
+            />
+            <h3>{{ gym.name }}</h3>
+          </div>
           <span 
             class="server-status-badge" 
             :class="gym.status === 'running' ? 'running' : 'stopped'"
@@ -23,7 +31,7 @@
           </span>
         </div>
         <div class="gym-details">
-          <p><strong>Телефон:</strong> {{ gym.phone }}</p>
+          <p><strong>Телефон:</strong> {{ formatPhoneNumber(gym.phone) }}</p>
           <p><strong>Email:</strong> {{ gym.email }}</p>
           <p v-if="gym.port"><strong>Порт:</strong> {{ gym.port }}</p>
           <div class="services">
@@ -51,6 +59,7 @@ export interface Gym {
   services: string[]
   status?: 'running' | 'stopped'
   port?: number | null
+  icon?: string | null
 }
 
 const emit = defineEmits(['select-gym'])
@@ -73,6 +82,14 @@ const fetchGyms = async () => {
     error.value = e instanceof Error ? e.message : 'Произошла ошибка'
     loading.value = false
   }
+}
+
+// Функция форматирования телефона
+const formatPhoneNumber = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length !== 10) return phone
+
+  return `+7(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 8)}-${digits.slice(8)}`
 }
 
 onMounted(fetchGyms)
@@ -146,5 +163,43 @@ onMounted(fetchGyms)
 
 .error {
   color: #dc3545;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
+}
+
+.gym-header-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.gym-icon {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #f0f0f0;
 }
 </style> 
