@@ -32,7 +32,7 @@ router.post("/", async (ctx) => {
     const newGym: IGym = {
       name: body.name,
       phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
-      email: body.email,
+      email: body.ownerEmail,
       services: body.services,
       port: body.port || null,
       icon: body.icon || null,
@@ -111,19 +111,21 @@ router.put("/:id", async (ctx) => {
 
     const gymCollection: Collection<IGym> = ctx.state.db.collection("gyms");
     
+    const updatedGym: Partial<IGym> = {
+      name: body.name,
+      phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
+      email: body.ownerEmail,
+      services: body.services,
+      status: body.status,
+      port: body.port,
+      icon: body.icon,
+      updatedAt: new Date()
+    };
+
     const result = await gymCollection.updateOne(
       { _id: new ObjectId(id) } as Filter<IGym>,
       { 
-        $set: {
-          name: body.name,
-          phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
-          email: body.email,
-          services: body.services,
-          status: body.status || 'stopped',
-          port: body.port || null,
-          icon: body.icon || null,
-          updatedAt: new Date()
-        }
+        $set: updatedGym
       }
     );
     
