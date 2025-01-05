@@ -1,0 +1,8 @@
+{
+    "imports": {
+        "vue": "https://esm.sh/vue@3.4.15",
+        "element-plus": "https://esm.sh/element-plus@2.4.4",
+        "element-plus/dist/index.css": "https://esm.sh/element-plus@2.4.4/dist/index.css",
+        "@/": "./src/"
+    }
+} 

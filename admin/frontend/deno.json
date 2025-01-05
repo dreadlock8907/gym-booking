@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-env --allow-ffi --allow-write --allow-run --allow-sys npm:vite",
+    "build": "deno run --allow-read --allow-write --allow-env --allow-ffi --allow-run --allow-sys npm:vite build",
+    "preview": "deno run --allow-net --allow-read --allow-env --allow-ffi --allow-run --allow-sys npm:vite preview"
+  },
+  "imports": {
+    "vue": "https://esm.sh/vue@3.3.0",
+    "vite": "npm:vite@^5.0.0",
+    "@vitejs/plugin-vue": "npm:@vitejs/plugin-vue@^5.0.0"
+  }
+}
