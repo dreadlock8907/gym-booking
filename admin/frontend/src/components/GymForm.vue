@@ -25,10 +25,10 @@
       <div class="form-group">
         <label>Email</label>
         <input 
-          v-model="formData.email" 
+          v-model="formData.ownerEmail" 
           type="email" 
           required 
-          placeholder="example@email.com"
+          placeholder="Email для входа в личный кабинет"
         />
       </div>
 
@@ -211,8 +211,8 @@ const isEditMode = ref(!!props.initialGym)
 const formData = ref<Gym>({
   _id: props.initialGym?._id || '',
   name: props.initialGym?.name || '',
-  phone: props.initialGym?.phone ? formatPhoneNumber(props.initialGym.phone) : '+7(',
-  email: props.initialGym?.email || '',
+  phone: props.initialGym?.phone ? formatPhoneNumber(props.initialGym.phone) : '+7',
+  ownerEmail: props.initialGym?.ownerEmail || '',
   services: props.initialGym?.services || [],
   selectedServices: props.initialGym?.services || [],
   status: props.initialGym?.status || 'stopped',
@@ -311,7 +311,7 @@ const createGym = async (data: Gym) => {
     body: JSON.stringify({
       name: data.name,
       phone: data.phone,
-      email: data.email,
+      ownerEmail: data.ownerEmail,
       services: data.selectedServices,
       port: data.port,
       icon: iconPreview.value
@@ -334,7 +334,7 @@ const updateGym = async (data: Gym) => {
     body: JSON.stringify({
       name: data.name,
       phone: data.phone,
-      email: data.email,
+      ownerEmail: data.ownerEmail,
       services: data.selectedServices,
       status: data.status,
       port: data.port,
@@ -374,8 +374,8 @@ const validateForm = (): boolean => {
   // Сбрасываем предыдущие ошибки
   error.value = ''
 
-  // Валидация email
-  if (!validateEmail(formData.value.email)) {
+  // Валидация email владельца (теперь это единственный email)
+  if (!validateEmail(formData.value.ownerEmail || '')) {
     error.value = 'Некорректный формат электронной почты'
     return false
   }
@@ -430,8 +430,8 @@ const resetForm = () => {
     formData.value = {
       _id: '',
       name: '',
-      phone: '+7', // Просто +7 без сложного форматирования
-      email: '',
+      phone: '+7',
+      ownerEmail: '',
       services: [],
       selectedServices: [],
       status: 'stopped',
