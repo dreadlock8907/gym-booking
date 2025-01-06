@@ -59,15 +59,89 @@
 
       <div class="form-group">
         <label>Услуги</label>
-        <div class="services-container">
-          <label v-for="service in services" :key="service" class="service-item">
-            <input 
-              type="checkbox" 
-              :value="service" 
-              v-model="formData.selectedServices"
-            />
-            {{ service }}
-          </label>
+        <div class="services-selection">
+          <!-- Существующий выбор услуг -->
+          <div class="services-actions">
+            <button 
+              type="button" 
+              class="manage-services-btn" 
+              @click="openServicesModal"
+            >
+              Добавить услуги
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модальное окно управления услугами -->
+      <div v-if="isServicesModalOpen" class="services-modal-overlay">
+        <div class="services-modal">
+          <div class="services-modal-header">
+            <h3>Управление услугами</h3>
+            <button @click="closeServicesModal" class="close-modal-btn">✕</button>
+          </div>
+
+          <div class="services-modal-content">
+            <div class="existing-services-list">
+              <h4>Существующие услуги</h4>
+              <div class="services-list">
+                <div 
+                  v-for="service in services" 
+                  :key="service._id" 
+                  class="service-item"
+                >
+                  <div class="service-item-content">
+                    <input 
+                      type="checkbox" 
+                      :checked="formData.selectedServices.includes(service._id)"
+                      @change="toggleService(service)"
+                      class="service-checkbox"
+                    />
+                    <span>{{ service.name }}</span>
+                  </div>
+                  <div class="service-actions">
+                    <button 
+                      @click="editService(service)" 
+                      class="edit-service-btn"
+                    >
+                      Изменить
+                    </button>
+                    <button 
+                      @click="deleteService(service)" 
+                      class="delete-service-btn"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="new-service-form">
+              <h4>Добавить новую услугу</h4>
+              <div class="form-row">
+                <input 
+                  v-model="newServiceName" 
+                  placeholder="Название услуги" 
+                  class="new-service-input"
+                />
+                <input 
+                  v-model="newServiceDescription" 
+                  placeholder="Описание (необязательно)"
+                  class="new-service-description-input"
+                />
+              </div>
+
+              <button 
+                type="button"
+                @click="addNewService" 
+                class="add-service-btn"
+                :disabled="!newServiceName"
+              >
+                Добавить услугу
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -187,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, computed } from 'vue'
+import { ref, defineProps, defineEmits, computed, onMounted } from 'vue'
 import { Gym } from './GymList.vue'
 
 // Функция форматирования номера телефона
@@ -224,16 +298,13 @@ const props = defineProps<{
 
 const emit = defineEmits(['gym-updated', 'edit-cancelled', 'gym-deleted'])
 
-const services = [
-  'Тренажерный зал',
-  'Групповые занятия',
-  'Бассейн',
-  'Йога',
-  'Кардио-зона',
-  'Массаж',
-  'Сауна'
-]
-
+const services = ref([])
+const isLoadingServices = ref(false)
+const servicesLoadError = ref(false)
+const isServicesModalOpen = ref(false)
+const newServiceDescription = ref('')
+const newServiceName = ref('')
+const newCategoryName = ref('')
 const isEditMode = ref(!!props.initialGym)
 
 const formData = ref<Gym>({
@@ -518,6 +589,158 @@ const deleteGym = async () => {
     error.value = e instanceof Error ? e.message : 'Произошла ошибка при удалении студии'
   }
 }
+
+const loadServices = async () => {
+  try {
+    isLoadingServices.value = true
+    servicesLoadError.value = false
+    
+    console.log('Загружаем список услуг...');
+    const response = await fetch('http://localhost:8000/api/services')
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ошибка загрузки услуг. Статус:', response.status, 'Текст:', errorText);
+      throw new Error('Не удалось загрузить список услуг')
+    }
+    
+    const result = await response.json()
+    console.log('Полученные услуги:', result);
+    services.value = Array.isArray(result) ? result : []
+    console.log('Обновленный список услуг:', services.value);
+    
+  } catch (error) {
+    console.error('Ошибка при загрузке услуг:', error)
+    servicesLoadError.value = true
+    services.value = []
+  } finally {
+    isLoadingServices.value = false
+  }
+}
+
+const openServicesModal = () => {
+  isServicesModalOpen.value = true
+}
+
+const closeServicesModal = () => {
+  isServicesModalOpen.value = false
+}
+
+const addNewService = async () => {
+  if (!newServiceName.value) return
+
+  try {
+    console.log('Отправляем запрос на создание услуги:', {
+      name: newServiceName.value,
+      description: newServiceDescription.value || ''
+    });
+
+    const response = await fetch('http://localhost:8000/api/services', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: newServiceName.value,
+        description: newServiceDescription.value || ''
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ошибка создания услуги. Статус:', response.status, 'Текст:', errorText);
+      throw new Error('Не удалось добавить услугу');
+    }
+
+    const result = await response.json();
+    console.log('Ответ сервера:', result);
+    
+    // Обновляем только список доступных услуг
+    await loadServices();
+    console.log('Список услуг обновлен');
+    
+    // Сбрасываем поля ввода
+    newServiceName.value = ''
+    newServiceDescription.value = ''
+
+    // Показываем сообщение только о добавлении услуги
+    alert('Услуга успешно добавлена!')
+
+  } catch (error) {
+    console.error('Ошибка при добавлении услуги:', error);
+    alert('Не удалось добавить услугу');
+  }
+}
+
+const editService = async (service: Service) => {
+  const newName = prompt('Введите новое название услуги', service.name)
+  const newDescription = prompt('Введите новое описание', service.description || '')
+
+  if (newName && newName !== service.name) {
+    try {
+      const response = await fetch(`http://localhost:8000/api/services/${service._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newName,
+          description: newDescription || ''
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Не удалось обновить услугу')
+      }
+
+      // Обновляем локальный список услуг
+      const index = services.value.findIndex(s => s._id === service._id)
+      if (index !== -1) {
+        services.value[index] = { 
+          ...services.value[index], 
+          name: newName, 
+          description: newDescription || '' 
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при обновлении услуги:', error)
+      alert('Не удалось обновить услугу')
+    }
+  }
+}
+
+const deleteService = async (service: Service) => {
+  if (confirm(`Вы уверены, что хотите удалить услугу "${service.name}"?`)) {
+    try {
+      const response = await fetch(`http://localhost:8000/api/services/${service._id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Не удалось удалить услугу')
+      }
+
+      // Удаляем услугу из локального списка
+      services.value = services.value.filter(s => s._id !== service._id)
+    } catch (error) {
+      console.error('Ошибка при удалении услуги:', error)
+      alert('Не удалось удалить услугу')
+    }
+  }
+}
+
+const toggleService = (service: Service) => {
+  const index = formData.value.selectedServices.indexOf(service._id)
+  if (index === -1) {
+    formData.value.selectedServices.push(service._id)
+  } else {
+    formData.value.selectedServices.splice(index, 1)
+  }
+  // Убираем автоматическое обновление при выборе услуги
+  console.log('Выбранные услуги:', formData.value.selectedServices)
+}
+
+onMounted(loadServices)
 </script>
 
 <style scoped>
@@ -559,14 +782,65 @@ input[type="email"] {
 }
 
 .service-item {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  font-weight: normal;
+  transition: background-color 0.3s ease;
 }
 
-.service-item input[type="checkbox"] {
-  margin: 0;
+.service-item:last-child {
+  border-bottom: none;
+}
+
+.service-item:hover {
+  background-color: #f8f9fa;
+}
+
+.service-item-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.service-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.service-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-service-btn,
+.delete-service-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.edit-service-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.edit-service-btn:hover {
+  background-color: #5a6268;
+}
+
+.delete-service-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-service-btn:hover {
+  background-color: #c82333;
 }
 
 .form-actions {
@@ -919,5 +1193,420 @@ input[type="email"] {
   text-align: center;
   color: #6c757d;
   font-size: 12px;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.category-actions,
+.service-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.edit-category-btn,
+.delete-category-btn,
+.edit-service-btn,
+.delete-service-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.edit-category-btn:hover,
+.edit-service-btn:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.delete-category-btn:hover,
+.delete-service-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.service-item-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.new-service-input {
+  margin-right: 10px;
+}
+
+.services-selection-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.existing-services-section,
+.new-service-section {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.services-grid {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.service-category {
+  margin-bottom: 15px;
+}
+
+.service-category h5 {
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.service-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.service-checkbox input[type="checkbox"] {
+  margin: 0;
+}
+
+.service-description {
+  color: #6c757d;
+  font-size: 12px;
+  margin-left: 25px;
+}
+
+.new-service-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.new-service-input,
+.category-select,
+.new-category-input {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.add-service-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.add-service-btn:disabled {
+  background-color: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.add-service-btn:not(:disabled):hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.services-loading,
+.no-services {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.reload-services-btn {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.reload-services-btn:hover {
+  background-color: #0056b3;
+}
+
+.services-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #f8d7da;
+  border-radius: 8px;
+  color: #721c24;
+  text-align: center;
+}
+
+.services-error p {
+  margin-bottom: 15px;
+}
+
+.reload-services-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.reload-services-btn:hover {
+  background-color: #c82333;
+}
+
+.services-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.service-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.services-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.services-modal {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.services-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.services-modal-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  transition: color 0.3s ease;
+}
+
+.close-modal-btn:hover {
+  color: #333;
+}
+
+.new-service-form {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.new-service-form h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.new-service-input,
+.new-service-description-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.new-service-input:focus,
+.new-service-description-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.services-list {
+  margin-top: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.service-item {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.service-item:last-child {
+  border-bottom: none;
+}
+
+.service-item:hover {
+  background-color: #f8f9fa;
+}
+
+.service-item-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.service-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.service-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-service-btn,
+.delete-service-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.edit-service-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.edit-service-btn:hover {
+  background-color: #5a6268;
+}
+
+.delete-service-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-service-btn:hover {
+  background-color: #c82333;
+}
+
+
+.manage-services-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.manage-services-btn:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.services-selection {
+  width: 100%;
+}
+
+.services-actions {
+  width: 100%;
 }
 </style> 

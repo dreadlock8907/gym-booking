@@ -5,6 +5,7 @@ import { MongoClient, Database } from "https://deno.land/x/mongo@v0.31.2/mod.ts"
 // Импорт роутеров
 import gymRoutes from "./routes/gymRoutes.ts";
 import authRoutes from "./routes/authRoutes.ts";
+import serviceRoutes from "./routes/serviceRoutes.ts";
 
 const app = new Application();
 const PORT = Deno.env.get("PORT") || 8000;
@@ -37,6 +38,24 @@ async function initializeFrontendOrigin(db: Database) {
   }
 }
 
+// Функция инициализации коллекции services
+async function initializeServicesCollection(db: Database) {
+  try {
+    const servicesCollection = db.collection("services");
+    
+    // Проверяем, есть ли уже какие-то услуги
+    const servicesCount = await servicesCollection.countDocuments();
+    
+    if (servicesCount === 0) {
+      console.log("✅ Коллекция services создана");
+    } else {
+      console.log(`✅ Коллекция services существует, количество услуг: ${servicesCount}`);
+    }
+  } catch (error) {
+    console.error("❌ Ошибка инициализации коллекции services:", error);
+  }
+}
+
 // Подключение к MongoDB
 const client = new MongoClient();
 let db: Database;
@@ -48,6 +67,9 @@ try {
   
   // Инициализируем origin для frontend
   await initializeFrontendOrigin(db);
+  
+  // Инициализируем коллекцию services
+  await initializeServicesCollection(db);
 } catch (error) {
   console.error("❌ Ошибка подключения к MongoDB:", error);
 }
@@ -112,6 +134,10 @@ apiRouter.use("/gyms", gymRoutes.allowedMethods());
 // Подключаем роуты авторизации
 apiRouter.use("/auth", authRoutes.routes());
 apiRouter.use("/auth", authRoutes.allowedMethods());
+
+// Подключаем роуты услуг
+apiRouter.use("/services", serviceRoutes.routes());
+apiRouter.use("/services", serviceRoutes.allowedMethods());
 
 // Подключаем API роутер к приложению
 app.use(apiRouter.routes());
