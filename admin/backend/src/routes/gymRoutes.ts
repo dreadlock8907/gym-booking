@@ -34,7 +34,7 @@ router.post("/", async (ctx) => {
     const newGym: IGym = {
       name: body.name,
       phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
-      email: body.ownerEmail,
+      email: body.email,
       services: body.services,
       port: body.port || null,
       icon: body.icon || null,
@@ -128,7 +128,7 @@ router.put("/:id", async (ctx) => {
     const updatedGym: Partial<IGym> = {
       name: body.name,
       phone: body.phone.replace(/\D/g, ''), // Сохраняем только цифры
-      email: body.ownerEmail,
+      email: body.email,
       services: body.services,
       status: body.status,
       port: body.port,

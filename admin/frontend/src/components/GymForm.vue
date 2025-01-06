@@ -25,7 +25,7 @@
       <div class="form-group">
         <label>Email</label>
         <input 
-          v-model="formData.ownerEmail" 
+          v-model="formData.email" 
           type="email" 
           required 
           placeholder="Email для входа в личный кабинет"
@@ -240,7 +240,7 @@ const formData = ref<Gym>({
   _id: props.initialGym?._id || '',
   name: props.initialGym?.name || '',
   phone: props.initialGym?.phone ? formatPhoneNumber(props.initialGym.phone) : '+7',
-  ownerEmail: props.initialGym?.ownerEmail || '',
+  email: props.initialGym?.email || '',
   services: props.initialGym?.services || [],
   selectedServices: props.initialGym?.services || [],
   status: props.initialGym?.status || 'stopped',
@@ -340,7 +340,7 @@ const createGym = async (data: Gym) => {
       body: JSON.stringify({
         name: data.name,
         phone: cleanPhoneNumber(data.phone),
-        ownerEmail: data.ownerEmail,
+        email: data.email,
         services: data.selectedServices,
         port: data.port,
         icon: iconPreview.value
@@ -370,7 +370,7 @@ const updateGym = async (data: Gym) => {
       body: JSON.stringify({
         name: data.name,
         phone: cleanPhoneNumber(data.phone),
-        ownerEmail: data.ownerEmail,
+        email: data.email,
         services: data.selectedServices,
         status: data.status,
         port: data.port,
@@ -411,8 +411,8 @@ const validateForm = (): boolean => {
   // Сбрасываем предыдущие ошибки
   error.value = ''
 
-  // Валидация email владельца (теперь это единственный email)
-  if (!validateEmail(formData.value.ownerEmail || '')) {
+  // Валидация email владельца
+  if (!validateEmail(formData.value.email || '')) {
     error.value = 'Некорректный формат электронной почты'
     return false
   }
@@ -477,7 +477,7 @@ const resetForm = () => {
       _id: '',
       name: '',
       phone: '+7',
-      ownerEmail: '',
+      email: '',
       services: [],
       selectedServices: [],
       status: 'stopped',
