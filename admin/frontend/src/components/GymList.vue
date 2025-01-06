@@ -36,11 +36,16 @@
           <p v-if="gym.port"><strong>Порт:</strong> {{ gym.port }}</p>
           <div class="services">
             <strong>Услуги:</strong>
-            <ul>
-              <li v-for="service in gym.services" :key="service">
-                {{ service }}
+            <ul v-if="gym.services && gym.services.length > 0" class="selected-services-list">
+              <li 
+                v-for="serviceId in gym.services" 
+                :key="serviceId" 
+                class="selected-service-tag"
+              >
+                {{ getServiceNameById(serviceId) }}
               </li>
             </ul>
+            <p v-else>Услуги не выбраны</p>
           </div>
         </div>
       </div>
@@ -67,6 +72,16 @@ const emit = defineEmits(['select-gym'])
 const gyms = ref<Gym[]>([])
 const loading = ref(true)
 const error = ref('')
+const services = ref<Service[]>([])
+
+const fetchServices = async () => {
+  try {
+    const response = await fetch('http://localhost:8000/api/services')
+    services.value = await response.json()
+  } catch (e) {
+    console.error('Ошибка при загрузке услуг:', e)
+  }
+}
 
 const fetchGyms = async () => {
   try {
@@ -92,7 +107,13 @@ const formatPhoneNumber = (phone: string): string => {
   return `+7(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 8)}-${digits.slice(8)}`
 }
 
+const getServiceNameById = (serviceId) => {
+  const service = services.value.find(s => s._id === serviceId)
+  return service ? service.name : serviceId
+}
+
 onMounted(fetchGyms)
+onMounted(fetchServices)
 </script>
 
 <style scoped>
@@ -201,5 +222,29 @@ onMounted(fetchGyms)
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #f0f0f0;
+}
+
+.selected-services {
+  margin-bottom: 15px;
+}
+
+.selected-services h5 {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.selected-services-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-service-tag {
+  background-color: #e9ecef;
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: #495057;
 }
 </style> 

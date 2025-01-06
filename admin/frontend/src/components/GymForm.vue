@@ -58,20 +58,32 @@
       </div>
 
       <div class="form-group">
-        <label>Услуги</label>
-        <div class="services-selection">
-          <!-- Существующий выбор услуг -->
-          <div class="services-actions">
-            <button 
-              type="button" 
-              class="manage-services-btn" 
-              @click="openServicesModal"
+      <label>Услуги</label>
+      <div class="services-selection">
+        <!-- Новый блок для отображения выбранных услуг -->
+        <div v-if="formData.services.length > 0" class="selected-services">
+          <h5>Выбранные услуги:</h5>
+          <div class="selected-services-list">
+            <span 
+              v-for="serviceId in formData.services" 
+              :key="serviceId" 
+              class="selected-service-tag"
             >
-              Добавить услуги
-            </button>
+              {{ services.find(s => s._id === serviceId)?.name || serviceId }}
+            </span>
           </div>
         </div>
+        <div class="services-actions">
+          <button 
+            type="button" 
+            class="manage-services-btn" 
+            @click="openServicesModal"
+          >
+            Добавить услуги
+          </button>
+        </div>
       </div>
+    </div>
 
       <!-- Модальное окно управления услугами -->
       <div v-if="isServicesModalOpen" class="services-modal-overlay">
@@ -93,7 +105,7 @@
                   <div class="service-item-content">
                     <input 
                       type="checkbox" 
-                      :checked="formData.selectedServices.includes(service._id)"
+                      :checked="formData.services.includes(service._id)"
                       @change="toggleService(service)"
                       class="service-checkbox"
                     />
@@ -313,7 +325,6 @@ const formData = ref<Gym>({
   phone: props.initialGym?.phone ? formatPhoneNumber(props.initialGym.phone) : '+7',
   email: props.initialGym?.email || '',
   services: props.initialGym?.services || [],
-  selectedServices: props.initialGym?.services || [],
   status: props.initialGym?.status || 'stopped',
   port: props.initialGym?.port || null,
   icon: props.initialGym?.icon || null
@@ -412,7 +423,7 @@ const createGym = async (data: Gym) => {
         name: data.name,
         phone: cleanPhoneNumber(data.phone),
         email: data.email,
-        services: data.selectedServices,
+        services: data.services,
         port: data.port,
         icon: iconPreview.value
       })
@@ -442,7 +453,7 @@ const updateGym = async (data: Gym) => {
         name: data.name,
         phone: cleanPhoneNumber(data.phone),
         email: data.email,
-        services: data.selectedServices,
+        services: data.services,
         status: data.status,
         port: data.port,
         icon: iconPreview.value === null ? null : (iconPreview.value || data.icon)
@@ -509,7 +520,7 @@ const submitForm = async () => {
     
     const gymData = {
       ...formData.value,
-      services: formData.value.selectedServices,
+      services: formData.value.services,
       // Оставляем номер телефона как есть
       phone: formData.value.phone
     }
@@ -730,14 +741,12 @@ const deleteService = async (service: Service) => {
 }
 
 const toggleService = (service: Service) => {
-  const index = formData.value.selectedServices.indexOf(service._id)
+  const index = formData.value.services.indexOf(service._id)
   if (index === -1) {
-    formData.value.selectedServices.push(service._id)
+    formData.value.services.push(service._id)
   } else {
-    formData.value.selectedServices.splice(index, 1)
+    formData.value.services.splice(index, 1)
   }
-  // Убираем автоматическое обновление при выборе услуги
-  console.log('Выбранные услуги:', formData.value.selectedServices)
 }
 
 onMounted(loadServices)
@@ -1608,5 +1617,29 @@ input[type="email"] {
 
 .services-actions {
   width: 100%;
+}
+
+.selected-services {
+  margin-bottom: 15px;
+}
+
+.selected-services h5 {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.selected-services-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-service-tag {
+  background-color: #e9ecef;
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: #495057;
 }
 </style> 
